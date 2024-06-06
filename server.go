@@ -2,7 +2,6 @@ package main
 
 import (
 	"net/http"
-
 	"quickpay/main/helpers"
 
 	"github.com/gofiber/fiber/v2"
@@ -19,8 +18,8 @@ func main() {
 
 	// Returning a user name
 	app.Get("/api/user/:id", func(c *fiber.Ctx) error {
-		helpers.GenQrCode(helpers.ExampleUser)
-		return c.Status(http.StatusOK).JSON(helpers.ExampleUser)
+		imageBase64String := helpers.GenQrCode(helpers.ExampleUser)
+		return c.Status(http.StatusOK).SendString(imageBase64String)
 	})
 
 	app.Listen(":3000")

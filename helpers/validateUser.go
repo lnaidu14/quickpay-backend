@@ -7,21 +7,22 @@ import (
 )
 
 type User struct {
-	ID       string `json:"id" validate:"required,uuid4"`
+	Id       string `json:"id" validate:"required,uuid4"`
 	Username string `json:"username" validate:"required,min=3,max=25"`
-	PH       string `json:"ph" validate:"required,e164"`
+	Ph       string `json:"ph" validate:"required,e164"`
 }
+
+var ExampleUser = User{"c85b4c8e-07ab-4c02-849d-71d495d6f905", "Foobar", "+11234567890"}
 
 var validate *validator.Validate
 
-func ValidateUser(user User) {
+func ValidateUser(user User) string {
 	validate = validator.New(validator.WithRequiredStructEnabled())
 
 	err := validate.Struct(user)
 
 	if err != nil {
-		fmt.Println("User is invalid")
-		fmt.Println("Error: ", err)
+		return fmt.Sprintf("%s", err)
 	}
-
+	return "User is valid"
 }

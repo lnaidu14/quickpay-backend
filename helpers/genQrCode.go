@@ -11,12 +11,10 @@ import (
 	"github.com/skip2/go-qrcode"
 )
 
-var ExampleUser = User{"c85b4c8e-07ab-4c02-849d-71d495d6f905", "Lalit", "+11234567890"}
-
 func GenQrCode(user User) string {
 	usr, err := json.Marshal(ExampleUser)
 
-	fileName := fmt.Sprintf("qr-%v.png", user.ID)
+	fileName := fmt.Sprintf("qr-%v.png", user.Id)
 
 	qrcode.WriteFile(string(usr), qrcode.Medium, 256, fileName)
 	if err != nil {

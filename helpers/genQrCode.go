@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 
@@ -23,13 +22,12 @@ func GenQrCode(user User) string {
 	}
 	str := QrCodeToBase64(fileName)
 	return str
-
 }
 
 func QrCodeToBase64(path string) string {
 	bytes, err := os.ReadFile(path)
 	if err != nil {
-		return ""
+		return fmt.Sprintf("%s", err)
 	}
 	var base64Encoding string
 	mimeType := http.DetectContentType(bytes)
@@ -45,8 +43,10 @@ func QrCodeToBase64(path string) string {
 	if base64Encoding != "" {
 		e := os.Remove(path)
 		if e != nil {
-			log.Fatal(e)
+			return fmt.Sprintf("%s", e)
 		}
+	} else if base64Encoding == "" {
+		return "Image type not supported"
 	}
 	return base64Encoding
 }

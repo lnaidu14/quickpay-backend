@@ -11,7 +11,7 @@ import (
 )
 
 func GenQrCode(user User) string {
-	usr, err := json.Marshal(ExampleUser)
+	usr, err := json.Marshal(user)
 
 	fileName := fmt.Sprintf("qr-%v.png", user.Id)
 

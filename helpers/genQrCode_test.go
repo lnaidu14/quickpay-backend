@@ -1,6 +1,7 @@
 package helpers
 
 import (
+	"runtime"
 	"testing"
 )
 
@@ -20,7 +21,13 @@ func TestString_QrCodeToBase64(t *testing.T) {
 
 	t.Run("Should return an error if file path doesn't exist", func(t *testing.T) {
 		got := QrCodeToBase64("invalidFilePath")
-		expected := "open invalidFilePath: The system cannot find the file specified."
+		os := runtime.GOOS
+		var expected string
+		if os == "windows" {
+			expected = "open invalidFilePath: The system cannot find the file specified."
+		} else if os == "linux" {
+			expected = "open invalidFilePath: no such file or directory"
+		}
 
 		if got != expected {
 			t.Errorf("got %q expected %q", got, expected)

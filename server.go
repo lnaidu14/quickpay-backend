@@ -2,9 +2,11 @@ package main
 
 import (
 	"net/http"
-	"quickpay/main/helpers"
 
 	"github.com/gofiber/fiber/v2"
+
+	"quickpay/main/helpers"
+	"quickpay/main/types"
 )
 
 func main() {
@@ -17,8 +19,15 @@ func main() {
 	})
 
 	// Returning a user name
-	app.Get("/api/user/:id", func(c *fiber.Ctx) error {
-		imageBase64String := helpers.GenQrCode(helpers.ExampleUser)
+	app.Post("/api/user/:id", func(c *fiber.Ctx) error {
+
+		var payload types.User
+
+		if err := c.BodyParser(&payload); err != nil {
+			return c.Status(400).SendString("Error occured when generating QR code")
+		}
+
+		imageBase64String := helpers.GenQrCode(payload)
 		return c.Status(http.StatusOK).SendString(imageBase64String)
 	})
 

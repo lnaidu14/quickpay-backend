@@ -7,13 +7,16 @@ import (
 	"net/http"
 	"os"
 
+	"quickpay/main/types"
+
 	"github.com/skip2/go-qrcode"
 )
 
-func GenQrCode(user User) string {
+func GenQrCode(user types.User) string {
 	usr, err := json.Marshal(user)
+	fmt.Println("GenQrCode(), user: ", user)
 
-	fileName := fmt.Sprintf("qr-%v.png", user.Id)
+	fileName := fmt.Sprintf("qr-%v.png", user.Username)
 
 	qrcode.WriteFile(string(usr), qrcode.Medium, 256, fileName)
 	if err != nil {

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/gofiber/fiber/v2"
@@ -28,7 +27,6 @@ func main() {
 			return c.Status(400).SendString("Error occured when generating QR code")
 		}
 
-		fmt.Println("user: ", payload)
 		imageBase64String := helpers.GenQrCode(payload)
 		return c.Status(http.StatusOK).SendString(imageBase64String)
 	})

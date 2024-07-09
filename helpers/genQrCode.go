@@ -13,11 +13,21 @@ import (
 )
 
 func GenQrCode(user types.User) string {
-	usr, err := json.Marshal(user)
+	usr, _ := json.Marshal(user)
+
+	i := string(usr)
+
+	// cipher key
+	key := os.Getenv("CIPHER_KEY")
+
+	encryptedMsg, err := EncryptAES([]byte(key), i)
+
+	// decrypt
+	// decryptedMsg, _ := DecryptAES([]byte(key), encryptedMsg)
 
 	fileName := fmt.Sprintf("qr-%v.png", user.Username)
 
-	qrcode.WriteFile(string(usr), qrcode.Medium, 256, fileName)
+	qrcode.WriteFile(encryptedMsg, qrcode.Highest, 256, fileName)
 	if err != nil {
 		fmt.Println("Error occured while generating QR code")
 		return ""
@@ -42,13 +52,13 @@ func QrCodeToBase64(path string) string {
 		base64Encoding = ""
 	}
 	base64Encoding += base64.StdEncoding.EncodeToString(bytes)
-	if base64Encoding != "" {
-		e := os.Remove(path)
-		if e != nil {
-			return fmt.Sprintf("%s", e)
-		}
-	} else if base64Encoding == "" {
-		return "Image type not supported"
-	}
+	// if base64Encoding != "" {
+	// 	e := os.Remove(path)
+	// 	if e != nil {
+	// 		return fmt.Sprintf("%s", e)
+	// 	}
+	// } else if base64Encoding == "" {
+	// 	return "Image type not supported"
+	// }
 	return base64Encoding
 }

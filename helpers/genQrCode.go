@@ -52,13 +52,13 @@ func QrCodeToBase64(path string) string {
 		base64Encoding = ""
 	}
 	base64Encoding += base64.StdEncoding.EncodeToString(bytes)
-	// if base64Encoding != "" {
-	// 	e := os.Remove(path)
-	// 	if e != nil {
-	// 		return fmt.Sprintf("%s", e)
-	// 	}
-	// } else if base64Encoding == "" {
-	// 	return "Image type not supported"
-	// }
+	if base64Encoding != "" {
+		e := os.Remove(path)
+		if e != nil {
+			return fmt.Sprintf("%s", e)
+		}
+	} else if base64Encoding == "" {
+		return "Image type not supported"
+	}
 	return base64Encoding
 }

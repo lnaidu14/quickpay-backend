@@ -22,9 +22,6 @@ func GenQrCode(user types.User) string {
 
 	encryptedMsg, err := EncryptAES([]byte(key), i)
 
-	// decrypt
-	// decryptedMsg, _ := DecryptAES([]byte(key), encryptedMsg)
-
 	fileName := fmt.Sprintf("qr-%v.png", user.Username)
 
 	qrcode.WriteFile(encryptedMsg, qrcode.Highest, 256, fileName)

@@ -28,7 +28,24 @@ func main() {
 
 	// Fetch and check if user exists
 	app.Get("/api/users/:id", func(c *fiber.Ctx) error {
-		url := fmt.Sprintf("https://dev-quickpay.us.auth0.com/api/v2/users/%s", c.Params("id"))
+		// cipher key
+		key := os.Getenv("CIPHER_KEY")
+
+		encryptedUserData := c.Params("id")
+
+		// decrypt
+		decryptedUserData, _ := helpers.DecryptAES([]byte(key), encryptedUserData)
+		fmt.Println("decrypted: ", decryptedUserData)
+
+		var msg types.User
+		err := json.Unmarshal([]byte(decryptedUserData), &msg)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"err": err,
+			})
+		}
+
+		url := fmt.Sprintf("https://dev-quickpay.us.auth0.com/api/v2/users/%s", msg.Id)
 
 		request := fiber.Get(url)
 
@@ -45,13 +62,12 @@ func main() {
 		}
 
 		var value fiber.Map
-		err := json.Unmarshal(data, &value)
-		if err != nil {
+		unmarshalError := json.Unmarshal(data, &value)
+		if unmarshalError != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"err": err,
+				"err": unmarshalError,
 			})
 		}
-
 		return c.Status(statusCode).JSON(value)
 	})
 

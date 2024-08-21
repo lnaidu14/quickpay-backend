@@ -29,6 +29,7 @@ func main() {
 	})
 
 	app.Get("/api/users", func(c *fiber.Ctx) error {
+		// TODO: Fetch users from Auth0 directly after adding payments, user payments etc.
 		// urlExample := "postgres://username:password@localhost:5432/database_name"
 		conn, err := pgx.Connect(context.Background(), os.Getenv("DATABASE_URL"))
 		if err != nil {

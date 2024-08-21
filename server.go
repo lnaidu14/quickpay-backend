@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -8,6 +9,7 @@ import (
 	"os"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/jackc/pgx/v5"
 	"github.com/joho/godotenv"
 
 	"quickpay/main/helpers"
@@ -24,6 +26,24 @@ func main() {
 	// Health check to see if server is live
 	app.Get("/api/health", func(c *fiber.Ctx) error {
 		return c.Status(http.StatusOK).SendString("Server is live")
+	})
+
+	app.Get("/api/users", func(c *fiber.Ctx) error {
+		// TODO: Fetch users from Auth0 directly after adding payments, user payments etc.
+		// urlExample := "postgres://username:password@localhost:5432/database_name"
+		conn, err := pgx.Connect(context.Background(), os.Getenv("DATABASE_URL"))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
+			return c.Status(http.StatusServiceUnavailable).SendString("Unable to connect to database")
+		}
+		defer conn.Close(context.Background())
+
+		users, err := helpers.FetchUsers(conn)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
+			return c.Status(http.StatusBadRequest).SendString("Query failed")
+		}
+		return c.Status(http.StatusOK).JSON(users)
 	})
 
 	// Fetch and check if user exists

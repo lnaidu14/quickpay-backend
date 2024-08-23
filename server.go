@@ -70,23 +70,36 @@ func main() {
 
 		if err != nil {
 			log.Printf("Error occured when connecting to database: %v\n", err)
-			return nil
+			return c.Status(http.StatusInternalServerError).JSON(types.Response{
+				Message: "Error occured when connecting to database",
+			})
 		}
 
 		userId := c.Params("id")
 		var payload types.UserTransactionBody
 		if err := c.BodyParser(&payload); err != nil {
-			return c.Status(400).SendString("Error occured when creating transaction")
+			return c.Status(http.StatusInternalServerError).JSON(types.Response{
+				Message: "Error occured when parsing payload",
+			})
+		}
+
+		if payload.Amt == 0 {
+			return c.Status(http.StatusBadRequest).JSON(types.Response{
+				Message: "Amount transferred cannot be zero",
+			})
 		}
 
 		// Create transaction record
 		message, err := helpers.CreateUserTransaction(conn, userId, payload)
 		if err != nil {
 			log.Printf("Error occured when fetching user transactions: %v\n", err)
-			return nil
+			return c.Status(http.StatusBadRequest).JSON(types.Response{
+				Message: "Error occured when fetching user transactions",
+			})
+
 		}
 		// Update balance of user
-		return c.Status(http.StatusAccepted).JSON(message)
+		return c.Status(http.StatusCreated).JSON(message)
 	})
 
 	// app.Get("/api/users", func(c *fiber.Ctx) error {

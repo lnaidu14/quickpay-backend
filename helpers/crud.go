@@ -76,17 +76,22 @@ func FetchUserTransactions(conn *pgx.Conn, userId string) (*[]types.UserTransact
 	return &userTransactions, nil
 }
 
-func CreateUserTransaction(conn *pgx.Conn, userId string, payload types.UserTransactionBody) (string, error) {
+func CreateUserTransaction(conn *pgx.Conn, userId string, payload types.UserTransactionBody) (types.Response, error) {
 	log.Println("Entering CreateUserTransaction()")
 
 	id := uuid.New()
+
 	_, err := conn.Exec(context.Background(), "INSERT INTO transactions (tx_id, user_id, amt, tx_datetime) values ($1, $2, $3, $4);", id.String(), userId, payload.Amt, time.Now())
 	if err != nil {
 		log.Printf("Error occured when creating user transactions: %v\n", err)
-		return "Error occured when creating user transactions", err
+		return types.Response{
+			Message: "Error occured when creating user transactions",
+		}, err
 	}
 	defer conn.Close(context.Background())
 
 	log.Println("Exiting CreateUserTransaction()")
-	return "Successfully created user transaction", nil
+	return types.Response{
+		Message: "Successfully created user transaction",
+	}, nil
 }

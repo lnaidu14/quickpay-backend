@@ -46,7 +46,6 @@ func NewConnection() (*pgx.Conn, error) {
 
 func FetchUserBalance(conn *pgx.Conn, userId string) (int, error) {
 	log.Println("Entering FetchUserBalance()")
-	defer conn.Close(context.Background())
 	var userBalance int
 	err := conn.QueryRow(context.Background(), "SELECT balance FROM users WHERE id=$1", userId).Scan(&userBalance)
 	if err != nil {
@@ -59,12 +58,11 @@ func FetchUserBalance(conn *pgx.Conn, userId string) (int, error) {
 
 func FetchUserTransactions(conn *pgx.Conn, userId string) (*[]types.UserTransactions, error) {
 	log.Println("Entering FetchUserTransactions()")
-	rows, err := conn.Query(context.Background(), "SELECT tx_id, amt, tx_datetime FROM transactions INNER JOIN users ON users.id = transactions.user_id WHERE id=$1 LIMIT 10", userId)
+	rows, err := conn.Query(context.Background(), "SELECT tx_id, amt, tx_datetime FROM transactions INNER JOIN users ON users.id = transactions.user_id WHERE id=$1 ORDER BY tx_datetime DESC LIMIT 10", userId)
 	if err != nil {
 		log.Printf("Error occured when querying user transactions: %v\n", err)
 		return nil, err
 	}
-	defer conn.Close(context.Background())
 	defer rows.Close()
 
 	userTransactions, err := pgx.CollectRows(rows, pgx.RowToStructByName[types.UserTransactions])
@@ -88,10 +86,30 @@ func CreateUserTransaction(conn *pgx.Conn, userId string, payload types.UserTran
 			Message: "Error occured when creating user transactions",
 		}, err
 	}
-	defer conn.Close(context.Background())
 
 	log.Println("Exiting CreateUserTransaction()")
 	return types.Response{
 		Message: "Successfully created user transaction",
 	}, nil
+}
+
+func UpdateUserBalance(conn *pgx.Conn, userId string, amt types.UserTransactionBody) error {
+	log.Println("Entering UpdateUserBalance()")
+
+	currUserBalance, err := FetchUserBalance(conn, userId)
+	if err != nil {
+		log.Printf("Error occured when fetching user balance: %v\n", err)
+		return nil
+	}
+
+	updatedUserBalance := currUserBalance - amt.Amt
+
+	_, err = conn.Exec(context.Background(), "UPDATE users SET balance=$1 WHERE id=$2;", updatedUserBalance, userId)
+	if err != nil {
+		log.Printf("Error occured when updating user balance: %v\n", err)
+		return err
+	}
+
+	log.Println("Exiting UpdateUserBalance()")
+	return nil
 }

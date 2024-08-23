@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -35,6 +36,8 @@ func main() {
 			return nil
 		}
 
+		defer conn.Close(context.Background())
+
 		userId := c.Params("id")
 
 		userBalance, err := helpers.FetchUserBalance(conn, userId)
@@ -53,6 +56,8 @@ func main() {
 			log.Printf("Error occured when connecting to database: %v\n", err)
 			return nil
 		}
+
+		defer conn.Close(context.Background())
 
 		userId := c.Params("id")
 
@@ -74,6 +79,8 @@ func main() {
 				Message: "Error occured when connecting to database",
 			})
 		}
+
+		defer conn.Close(context.Background())
 
 		userId := c.Params("id")
 		var payload types.UserTransactionBody
@@ -98,7 +105,16 @@ func main() {
 			})
 
 		}
+
 		// Update balance of user
+		err = helpers.UpdateUserBalance(conn, userId, payload)
+		if err != nil {
+			log.Printf("Error occured when updating user balance: %v\n", err)
+			return c.Status(http.StatusBadRequest).JSON(types.Response{
+				Message: "Error occured when updating user balance",
+			})
+
+		}
 		return c.Status(http.StatusCreated).JSON(message)
 	})
 
@@ -110,6 +126,8 @@ func main() {
 	// 		log.Printf("Error occured when connecting to database: %v\n", err)
 	// 		return nil
 	// 	}
+
+	//  defer conn.Close(context.Background())
 
 	// 	users, err := helpers.FetchUsers(conn)
 	// 	if err != nil {

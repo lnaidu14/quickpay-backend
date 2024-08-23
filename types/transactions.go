@@ -9,5 +9,5 @@ type UserTransactions struct {
 }
 
 type UserTransactionBody struct {
-	Amt uint `json:"amt"`
+	Amt int `json:"amt"`
 }

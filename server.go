@@ -9,7 +9,6 @@ import (
 	"os"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/jackc/pgx/v5"
 	"github.com/joho/godotenv"
 
 	"quickpay/main/helpers"
@@ -28,25 +27,117 @@ func main() {
 		return c.Status(http.StatusOK).SendString("Server is live")
 	})
 
-	app.Get("/api/users", func(c *fiber.Ctx) error {
-		// TODO: Fetch users from Auth0 directly after adding payments, user payments etc.
-		// urlExample := "postgres://username:password@localhost:5432/database_name"
-		conn, err := pgx.Connect(context.Background(), os.Getenv("DATABASE_URL"))
+	// Fetch user balance
+	app.Get("/api/users/:id/balance", func(c *fiber.Ctx) error {
+		conn, err := helpers.NewConnection()
+
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
-			return c.Status(http.StatusServiceUnavailable).SendString("Unable to connect to database")
+			log.Printf("Error occured when connecting to database: %v\n", err)
+			return nil
 		}
+
 		defer conn.Close(context.Background())
 
-		users, err := helpers.FetchUsers(conn)
+		userId := c.Params("id")
+
+		userBalance, err := helpers.FetchUserBalance(conn, userId)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
-			return c.Status(http.StatusBadRequest).SendString("Query failed")
+			log.Printf("Error occured when fetching user balance: %v\n", err)
+			return nil
 		}
-		return c.Status(http.StatusOK).JSON(users)
+		return c.Status(http.StatusOK).JSON(userBalance)
 	})
 
-	// Fetch and check if user exists
+	// Fetch user transactions
+	app.Get("/api/users/:id/transactions", func(c *fiber.Ctx) error {
+		conn, err := helpers.NewConnection()
+
+		if err != nil {
+			log.Printf("Error occured when connecting to database: %v\n", err)
+			return nil
+		}
+
+		defer conn.Close(context.Background())
+
+		userId := c.Params("id")
+
+		userTransactions, err := helpers.FetchUserTransactions(conn, userId)
+		if err != nil {
+			log.Printf("Error occured when fetching user transactions: %v\n", err)
+			return nil
+		}
+		return c.Status(http.StatusOK).JSON(userTransactions)
+	})
+
+	// Create user transaction
+	app.Post("/api/users/:id/transactions", func(c *fiber.Ctx) error {
+		conn, err := helpers.NewConnection()
+
+		if err != nil {
+			log.Printf("Error occured when connecting to database: %v\n", err)
+			return c.Status(http.StatusInternalServerError).JSON(types.Response{
+				Message: "Error occured when connecting to database",
+			})
+		}
+
+		defer conn.Close(context.Background())
+
+		userId := c.Params("id")
+		var payload types.UserTransactionBody
+		if err := c.BodyParser(&payload); err != nil {
+			return c.Status(http.StatusInternalServerError).JSON(types.Response{
+				Message: "Error occured when parsing payload",
+			})
+		}
+
+		if payload.Amt == 0 {
+			return c.Status(http.StatusBadRequest).JSON(types.Response{
+				Message: "Amount transferred cannot be zero",
+			})
+		}
+
+		// Create transaction record
+		message, err := helpers.CreateUserTransaction(conn, userId, payload)
+		if err != nil {
+			log.Printf("Error occured when fetching user transactions: %v\n", err)
+			return c.Status(http.StatusBadRequest).JSON(types.Response{
+				Message: "Error occured when fetching user transactions",
+			})
+
+		}
+
+		// Update balance of user
+		err = helpers.UpdateUserBalance(conn, userId, payload)
+		if err != nil {
+			log.Printf("Error occured when updating user balance: %v\n", err)
+			return c.Status(http.StatusBadRequest).JSON(types.Response{
+				Message: "Error occured when updating user balance",
+			})
+
+		}
+		return c.Status(http.StatusCreated).JSON(message)
+	})
+
+	// app.Get("/api/users", func(c *fiber.Ctx) error {
+	// 	// TODO: Fetch users from Auth0 directly after adding payments, user payments etc.
+	// 	// urlExample := "postgres://username:password@localhost:5432/database_name"
+	// 	conn, err := helpers.NewConnection()
+	// 	if err != nil {
+	// 		log.Printf("Error occured when connecting to database: %v\n", err)
+	// 		return nil
+	// 	}
+
+	//  defer conn.Close(context.Background())
+
+	// 	users, err := helpers.FetchUsers(conn)
+	// 	if err != nil {
+	// 		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
+	// 		return c.Status(http.StatusBadRequest).SendString("Query failed")
+	// 	}
+	// 	return c.Status(http.StatusOK).JSON(users)
+	// })
+
+	// Fetch and check if user exists in Auth0
 	app.Get("/api/users/:id", func(c *fiber.Ctx) error {
 		// cipher key
 		key := os.Getenv("CIPHER_KEY")

@@ -33,7 +33,7 @@ func main() {
 
 		if err != nil {
 			log.Printf("Error occured when connecting to database: %v\n", err)
-			return nil
+			return c.SendStatus(http.StatusInternalServerError)
 		}
 
 		defer conn.Close(context.Background())
@@ -43,9 +43,30 @@ func main() {
 		userBalance, err := helpers.FetchUserBalance(conn, userId)
 		if err != nil {
 			log.Printf("Error occured when fetching user balance: %v\n", err)
-			return nil
+			return err
 		}
 		return c.Status(http.StatusOK).JSON(userBalance)
+	})
+
+	// Fetch user from database
+	app.Get("/api/users/:id", func(c *fiber.Ctx) error {
+		conn, err := helpers.NewConnection()
+
+		if err != nil {
+			log.Printf("Error occured when connecting to database: %v\n", err)
+			return c.SendStatus(http.StatusInternalServerError)
+		}
+
+		defer conn.Close(context.Background())
+
+		userId := c.Params("id")
+
+		user, err := helpers.FetchUserFromDb(conn, userId)
+		if err != nil {
+			log.Printf("Error occured when fetching user from database: %v\n", err)
+			return c.Status(http.StatusInternalServerError).JSON(err.Error())
+		}
+		return c.Status(http.StatusOK).JSON(user)
 	})
 
 	// Fetch user transactions
@@ -70,52 +91,45 @@ func main() {
 	})
 
 	// Create user transaction
-	app.Post("/api/users/:id/transactions", func(c *fiber.Ctx) error {
+	app.Post("/api/users/transactions", func(c *fiber.Ctx) error {
+		log.Printf("Creating user transaction for users")
 		conn, err := helpers.NewConnection()
 
 		if err != nil {
 			log.Printf("Error occured when connecting to database: %v\n", err)
-			return c.Status(http.StatusInternalServerError).JSON(types.Response{
-				Message: "Error occured when connecting to database",
-			})
+			return c.Status(http.StatusInternalServerError).JSON(err.Error())
 		}
 
 		defer conn.Close(context.Background())
 
-		userId := c.Params("id")
 		var payload types.UserTransactionBody
 		if err := c.BodyParser(&payload); err != nil {
-			return c.Status(http.StatusInternalServerError).JSON(types.Response{
-				Message: "Error occured when parsing payload",
-			})
+			log.Printf("Error occured when parsing payload: %v\n", err)
+			return c.Status(http.StatusInternalServerError).JSON(err.Error())
 		}
 
 		if payload.Amt == 0 {
-			return c.Status(http.StatusBadRequest).JSON(types.Response{
-				Message: "Amount transferred cannot be zero",
-			})
-		}
-
-		// Create transaction record
-		message, err := helpers.CreateUserTransaction(conn, userId, payload)
-		if err != nil {
-			log.Printf("Error occured when fetching user transactions: %v\n", err)
-			return c.Status(http.StatusBadRequest).JSON(types.Response{
-				Message: "Error occured when fetching user transactions",
-			})
-
+			log.Printf("Amount transferred cannot be zero")
+			return c.Status(http.StatusBadRequest).JSON(types.GenericResponse{Message: "amount transferred cannot be zero"})
 		}
 
 		// Update balance of user
-		err = helpers.UpdateUserBalance(conn, userId, payload)
+		err = helpers.UpdateUserBalance(conn, payload)
 		if err != nil {
 			log.Printf("Error occured when updating user balance: %v\n", err)
-			return c.Status(http.StatusBadRequest).JSON(types.Response{
-				Message: "Error occured when updating user balance",
-			})
-
+			return c.Status(http.StatusBadRequest).JSON(types.GenericResponse{Message: err.Error()})
 		}
-		return c.Status(http.StatusCreated).JSON(message)
+
+		// Create transaction record
+		transactionMessage, err := helpers.CreateUserTransaction(conn, payload)
+		if err != nil {
+			log.Printf("Error occured creating user transactions: %v\n", err)
+			return c.Status(http.StatusBadRequest).JSON(types.GenericResponse{
+				Message: err.Error(),
+			})
+		}
+
+		return c.Status(http.StatusCreated).JSON(transactionMessage)
 	})
 
 	// app.Get("/api/users", func(c *fiber.Ctx) error {
@@ -138,7 +152,7 @@ func main() {
 	// })
 
 	// Fetch and check if user exists in Auth0
-	app.Get("/api/users/:id", func(c *fiber.Ctx) error {
+	app.Get("/api/auth/users/:id", func(c *fiber.Ctx) error {
 		// cipher key
 		key := os.Getenv("CIPHER_KEY")
 
@@ -182,9 +196,9 @@ func main() {
 		return c.Status(statusCode).JSON(value)
 	})
 
-	// Returning a user name
-	app.Post("/api/user/:id", func(c *fiber.Ctx) error {
-
+	// Generate a user QR code
+	app.Post("/api/users/qr/:id", func(c *fiber.Ctx) error {
+		fmt.Println("Generating QR code...")
 		var payload types.User
 
 		if err := c.BodyParser(&payload); err != nil {
@@ -193,6 +207,58 @@ func main() {
 
 		imageBase64String := helpers.GenQrCode(payload)
 		return c.Status(http.StatusOK).SendString(imageBase64String)
+	})
+
+	// Create user
+	app.Post("/api/users", func(c *fiber.Ctx) error {
+		conn, err := helpers.NewConnection()
+
+		if err != nil {
+			log.Printf("Error occured when connecting to database: %v\n", err)
+			return c.Status(http.StatusInternalServerError).JSON(err.Error())
+		}
+
+		defer conn.Close(context.Background())
+
+		var payload types.CreateDbUser
+
+		if err := c.BodyParser(&payload); err != nil {
+			return c.Status(400).SendString("Error occured when generating QR code")
+		}
+
+		message, err := helpers.CreateUserInDb(conn, payload)
+
+		if err != nil {
+			log.Printf("Error occured when fetching user transactions: %v\n", err)
+			return c.Status(http.StatusBadRequest).JSON(err.Error())
+
+		}
+
+		return c.Status(http.StatusOK).JSON(message)
+	})
+
+	app.Post("/api/authorize/:id", func(c *fiber.Ctx) error {
+
+		userId := c.Params("id")
+
+		response, err := helpers.FetchManagementApiToken()
+
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"err": err,
+			})
+		}
+		accessToken := response.AccessToken
+
+		profile, err := helpers.FetchUserProfile(accessToken, userId)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"err": err,
+			})
+		}
+		fmt.Println("profile: ", profile)
+		return c.Status(http.StatusOK).JSON(profile)
+
 	})
 
 	app.Listen(":3000")

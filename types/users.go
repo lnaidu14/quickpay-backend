@@ -6,6 +6,17 @@ type User struct {
 	Ph       string `json:"ph" validate:"required"`
 }
 
+type DbUser struct {
+	Id       string `json:"id"`
+	Username string `json:"username"`
+	Balance  int    `json:"balance"`
+}
+
+type CreateDbUser struct {
+	Id       string `json:"id"`
+	Username string `json:"username"`
+}
+
 type UserBalance struct {
 	Balance int `json:"balance"`
 }
